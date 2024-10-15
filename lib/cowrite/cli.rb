@@ -16,8 +16,15 @@ class Cowrite
       prompt = ARGV[0]
 
       files = cowrite.files prompt
-      puts "Found #{files.size} files to iterate [continue/list]"
-      abort unless STDIN.gets == "c\n" # TODO: prompt with loop and list support
+      answer = prompt "Found #{files.size} files to iterate", ["continue", "list"]
+      case answer
+      when "continue" # do nothing
+      when "list" then
+        puts files
+        abort unless prompt("Continue ?", ["yes", "no"]) == "yes"
+      else raise
+      end
+
 
       # TODO: flag instead of env
       Parallel.each files, threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
@@ -26,6 +33,17 @@ class Cowrite
     end
 
     private
+
+    def prompt(question, answers)
+      loop do
+        puts "#{question} [#{answers.join("/")}]"
+        read = STDIN.gets.strip
+        return read if answers.include?(read)
+        if (a = answers.map { |a| a[0] }.index(read))
+          return answers[a]
+        end
+      end
+    end
 
     def remove_shell_colors(string)
       string.gsub(/\e\[(\d+)(;\d+)*m/, "")
