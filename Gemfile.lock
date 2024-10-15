@@ -2,6 +2,8 @@ PATH
   remote: .
   specs:
     cowrite (0.1.0)
+      parallel
+      ruby-progressbar
 
 GEM
   remote: https://rubygems.org/

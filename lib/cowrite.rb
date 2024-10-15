@@ -12,54 +12,77 @@ class Cowrite
   end
 
   def files(prompt)
-    prompt = "Write a unix Dir[] expression to find all files that would be useful for this prompt:\n```#{prompt}```"
+    # TODO: ask llm which folders to search when >1k files
+    files = `git ls-files`
+    abort files unless $?.success?
+
+    prompt = <<~MSG
+      Your task is to find a subset of files from a given list of file names.
+      Only reply with the subset of files, newline separated, nothing else.
+
+      Given this list of files: #{files.split("\n").inspect}
+ 
+      Which subset of files would be useful for this LLM prompt:
+      ```
+      #{prompt}
+      ```
+    MSG
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
     puts "answer:\n#{answer}" if ENV["DEBUG"]
-    puts "Fixing #{offense} with:\n#{answer}"
+    answer.split("\n").map(&:strip) # llms like to add extra spaces
+  end
 
-    answer = answer.strip.sub(/\A```ruby\n(.*)\n```\z/m, "\\1") # it always adds these even when asked to not add
+  def modify(file, prompt)
+    prompt = <<~MSG
+      Your task is to modify the contents of the file #{file}, listed below.
+      Only reply with the contents, nothing else.
 
-    case offense_name
-    when "Gemspec/DevelopmentDependencies"
-      remove_line_in_file(path, line_number)
-      append_line_to_file("Gemfile", answer)
-    else
-      # replace line in file
-      whitespace = line[/\A\s*/]
-      answer = "#{whitespace}#{answer.lstrip}" # it often gets confused and messes up the whitespace
-      replace_line_in_file(path, line_number, answer)
-    end
+      Apply this request:
+      ```
+      #{prompt}
+      ```
+
+      To this content:
+      ```
+      #{File.read file}
+      ```
+    MSG
+    puts "prompt:#{prompt}" if ENV["DEBUG"]
+    answer = send_to_openai(prompt)
+    puts "answer:\n#{answer}" if ENV["DEBUG"]
+    answer = answer.strip.sub(/\A```\S*\n(.*)```\z/m, "\\1") # remove ```foo<content>``` wrapping
+    File.write file, answer
   end
 
   private
 
-  def lines_from_file(file_path, line_number)
-    start_line = [line_number - @context, 1].max
-    end_line = line_number + @context
-
-    lines = File.read(file_path).split("\n", -1)
-    context = lines.each_with_index.map { |l, i| "line #{(i + 1).to_s.rjust(5, " ")}:#{l}" }
-    [lines[line_number - 1], context[start_line - 1..end_line - 1]]
-  end
-
-  def replace_line_in_file(file_path, line_number, new_line)
-    lines = File.read(file_path).split("\n", -1)
-    lines[line_number - 1] = new_line
-    File.write(file_path, lines.join("\n"))
-  end
-
-  def append_line_to_file(path, answer)
-    File.open(path, "a") do |f|
-      f.puts(answer)
-    end
-  end
-
-  def remove_line_in_file(path, line_number)
-    lines = File.read(path).split("\n", -1)
-    lines.delete_at(line_number - 1)
-    File.write(path, lines.join("\n"))
-  end
+  # def lines_from_file(file_path, line_number)
+  #   start_line = [line_number - @context, 1].max
+  #   end_line = line_number + @context
+  #
+  #   lines = File.read(file_path).split("\n", -1)
+  #   context = lines.each_with_index.map { |l, i| "line #{(i + 1).to_s.rjust(5, " ")}:#{l}" }
+  #   [lines[line_number - 1], context[start_line - 1..end_line - 1]]
+  # end
+  #
+  # def replace_line_in_file(file_path, line_number, new_line)
+  #   lines = File.read(file_path).split("\n", -1)
+  #   lines[line_number - 1] = new_line
+  #   File.write(file_path, lines.join("\n"))
+  # end
+  #
+  # def append_line_to_file(path, answer)
+  #   File.open(path, "a") do |f|
+  #     f.puts(answer)
+  #   end
+  # end
+  #
+  # def remove_line_in_file(path, line_number)
+  #   lines = File.read(path).split("\n", -1)
+  #   lines.delete_at(line_number - 1)
+  #   File.write(path, lines.join("\n"))
+  # end
 
   def send_to_openai(prompt)
     uri = URI.parse("#{@url}/v1/chat/completions")
@@ -71,7 +94,8 @@ class Cowrite
       {
         model: @model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 150
+        max_completion_tokens: 10000,
+        temperature: 0.3
       }
     )
 
