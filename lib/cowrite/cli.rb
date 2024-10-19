@@ -27,6 +27,7 @@ class Cowrite
 
 
       # TODO: flag instead of env
+      # TODO: show user diff and ask to apply
       Parallel.each files, threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
         cowrite.modify file, prompt
       end

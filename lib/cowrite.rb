@@ -30,12 +30,13 @@ class Cowrite
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
     puts "answer:\n#{answer}" if ENV["DEBUG"]
-    answer.split("\n").map(&:strip) # llms like to add extra spaces
+    without_quotes(answer).split("\n").map(&:strip) # llms like to add extra spaces
   end
 
   def modify(file, prompt)
     prompt = <<~MSG
       Your task is to modify the contents of the file #{file}, listed below.
+      If it does not need changes that is fine too.
       Only reply with the contents, nothing else.
 
       Apply this request:
@@ -51,11 +52,16 @@ class Cowrite
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
     puts "answer:\n#{answer}" if ENV["DEBUG"]
-    answer = answer.strip.sub(/\A```\S*\n(.*)```\z/m, "\\1") # remove ```foo<content>``` wrapping
+    answer = without_quotes(answer)
     File.write file, answer
   end
 
   private
+
+  # remove ```foo<content>``` wrapping
+  def without_quotes(answer)
+    answer.strip.sub(/\A```\S*\n(.*)```\z/m, "\\1")
+  end
 
   # def lines_from_file(file_path, line_number)
   #   start_line = [line_number - @context, 1].max
