@@ -35,25 +35,22 @@ class Cowrite
 
   def modify(file, prompt)
     prompt = <<~MSG
-      Your task is to modify the contents of the file #{file}, listed below.
-      If it does not need changes that is fine too.
-      Only reply with the contents, nothing else.
-
-      Apply this request:
+      To solve this prompt:
       ```
       #{prompt}
       ```
 
-      To this content:
+      By finding the fix for the content of the file #{file}, listed below.
       ```
       #{File.read file}
       ```
+
+      And then replying with only the fixed content of the file.
     MSG
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
     puts "answer:\n#{answer}" if ENV["DEBUG"]
-    answer = without_quotes(answer)
-    File.write file, answer
+    without_quotes(answer)
   end
 
   private

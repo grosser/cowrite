@@ -2,6 +2,7 @@
 
 require "shellwords"
 require "parallel"
+require "tempfile"
 
 class Cowrite
   class CLI
@@ -28,7 +29,20 @@ class Cowrite
 
       # TODO: flag instead of env
       # TODO: show user diff and ask to apply
-      Parallel.each files, threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
+      # prompting on main thread so we can go 1-by-1
+      finish = -> (file, _, content) do
+        # answer = prompt "Apply this diff to #{file}\n#{diff}", ["yes", "no"]
+        # if answer == "yes"
+        #   Tempfile.create("cowrite-diff") do |f|
+        #     f.write diff.strip + "\n"
+        #     f.close
+        #     out = `patch #{file} < #{f.path}`
+        #     abort "Patch failed:\n#{out}" unless $?.success?
+        #   end
+        # end
+        File.write file, content
+      end
+      Parallel.each files, finish: , threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
         cowrite.modify file, prompt
       end
     end
