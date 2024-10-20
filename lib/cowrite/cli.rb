@@ -21,43 +21,73 @@ class Cowrite
       case answer
       when "continue" # do nothing
       when "list" then
-        puts files
+        warn files
         abort unless prompt("Continue ?", ["yes", "no"]) == "yes"
       else raise
       end
 
-
-      # TODO: flag instead of env
-      # TODO: show user diff and ask to apply
       # prompting on main thread so we can go 1-by-1
-      finish = -> (file, _, content) do
-        # answer = prompt "Apply this diff to #{file}\n#{diff}", ["yes", "no"]
-        # if answer == "yes"
-        #   Tempfile.create("cowrite-diff") do |f|
-        #     f.write diff.strip + "\n"
-        #     f.close
-        #     out = `patch #{file} < #{f.path}`
-        #     abort "Patch failed:\n#{out}" unless $?.success?
-        #   end
-        # end
-        File.write file, content
+      finish = -> (file, _, diff) do
+        # ask user if diff is fine
+        answer = prompt "Diff for #{file}:\n#{diff}Apply diff to #{file}?", ["yes", "no"]
+        return unless answer == "yes"
+
+        with_content_in_file(diff.strip + "\n") do |path|
+          # apply diff
+          cmd = "patch -R #{file} < #{path}"
+          out = `#{cmd}`
+          return if $?.success?
+
+          # give the user a chance to copy the tempfile or modify it
+          warn "Patch failed:\n#{cmd}\n#{out}"
+          abort unless prompt("Continue ?", ["yes", "no"]) == "yes"
+        end
       end
-      Parallel.each files, finish: , threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
-        cowrite.modify file, prompt
+
+      # TODO: --parallel instead of env
+      Parallel.each files, finish: finish, threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
+        cowrite.diff file, prompt
       end
     end
 
     private
 
+    def with_content_in_file(content)
+      Tempfile.create("cowrite-diff") do |f|
+        f.write content
+        f.close
+        yield f.path
+      end
+    end
+
+    # prompt user with questions and answers until they pick one of them
+    # also supports replying with the first letter of the answer
     def prompt(question, answers)
+      colored_answers = answers.map { |a| color(:underline, a[0]) + a[1...] }.join("/")
       loop do
-        puts "#{question} [#{answers.join("/")}]"
+        warn "#{color_last_line(:blue, question)} [#{colored_answers}]"
         read = STDIN.gets.strip
         return read if answers.include?(read)
         if (a = answers.map { |a| a[0] }.index(read))
           return answers[a]
         end
       end
+    end
+
+    def color_last_line(color, text)
+      lines = text.split("\n")
+      lines[-1] = color(color, lines[-1])
+      lines.join("\n")
+    end
+
+    def color(color, text)
+      code =
+        case color
+        when :underline then 4
+        when :blue then 34
+        else raise ArgumentError
+        end
+      "\e[#{code}m#{text}\e[0m"
     end
 
     def remove_shell_colors(string)

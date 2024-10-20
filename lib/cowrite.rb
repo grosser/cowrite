@@ -33,19 +33,22 @@ class Cowrite
     without_quotes(answer).split("\n").map(&:strip) # llms like to add extra spaces
   end
 
-  def modify(file, prompt)
+  def diff(file, prompt)
+    # - tried "patch format" but that is often invalid
+    # - tied "full fixed content" but that is always missing the fix
+    # - need "ONLY" or it adds comments
     prompt = <<~MSG
-      To solve this prompt:
+      Solve this prompt:
       ```
       #{prompt}
       ```
 
-      By finding the fix for the content of the file #{file}, listed below.
+      By changing the content of the file #{file}:
       ```
       #{File.read file}
       ```
 
-      And then replying with only the fixed content of the file.
+      Reply with ONLY the change in diff format.
     MSG
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
