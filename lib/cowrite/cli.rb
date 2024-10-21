@@ -10,7 +10,7 @@ class Cowrite
       # get config first so we fail fast
       api_key = ENV.fetch("COWRITE_API_KEY")
       url = ENV.fetch("COWRITE_URL", "https://api.openai.com")
-      model = ENV.fetch("MODEL", "gpt-4o-mini")
+      model = ENV.fetch("MODEL", "gpt-4o")
       cowrite = Cowrite.new(url: url, api_key: api_key, model: model)
 
       abort "Use only first argument for prompt" if argv.size != 1 # TODO: remove
