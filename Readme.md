@@ -15,7 +15,7 @@ Usage
 
 ```bash
 cowrite "covert every ruby file to use frozen strings"
-> found 12 files to be modified [contiue|list|step]
+> found 12 files to be iterate [contiue|list]
 > contiue
 > modified lib/foo.rb
 ...
