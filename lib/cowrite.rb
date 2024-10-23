@@ -21,7 +21,7 @@ class Cowrite
       Only reply with the subset of files, newline separated, nothing else.
 
       Given this list of files: #{files.split("\n").inspect}
- 
+
       Which subset of files would be useful for this LLM prompt:
       ```
       #{prompt}
@@ -100,7 +100,7 @@ class Cowrite
       {
         model: @model,
         messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 10000,
+        max_completion_tokens: 10_000,
         temperature: 0.3
       }
     )

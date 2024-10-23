@@ -15,21 +15,19 @@ Usage
 
 ```bash
 cowrite "covert every ruby file to use frozen strings"
-> found 12 files to be iterate [contiue|list]
-> contiue
-> modified lib/foo.rb
-...
-git diff
-# Rakefile
-#  - FOO = "foo".freeze
-#  + # frozen_string_literal: true
-#  + FOO = "foo"
+> Accept 12 files to be iterate [yes|choose]
+> Diff for Rakefile:
+- FOO = "foo".freeze
++ # frozen_string_literal: true
++ FOO = "foo"
+Apply diff to Rakefile ? [yes]
 git commit -am 'fixing rubocop warnings'
 ```
 
 ### Options
 
 - `DEBUG=1` show prompt and answers
+- `PARALLEL=10` run queries in parallel
 - `COWRITE_URL=` defaults to `https://api.openai.com`
 - `COWRITE_API_KEY=`
 

@@ -10,8 +10,8 @@ require "webmock/minitest"
 require "mocha/minitest"
 require "stringio"
 
-require "rubofix/version"
-require "rubofix"
+require "cowrite/version"
+require "cowrite"
 
 Minitest::Test.class_eval do
   def capture_stdout

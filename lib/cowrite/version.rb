@@ -1,4 +1,4 @@
 # frozen_string_literal: true
-class Rubofix
+class Cowrite
   VERSION = "0.1.0"
 end

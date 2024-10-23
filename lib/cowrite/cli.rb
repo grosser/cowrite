@@ -15,7 +15,7 @@ class Cowrite
       api_key = ENV.fetch("COWRITE_API_KEY")
       url = ENV.fetch("COWRITE_URL", "https://api.openai.com")
       model = ENV.fetch("MODEL", "gpt-4o")
-      @cowrite = Cowrite.new(url: url, api_key: api_key, model: model)
+      @cowrite = Cowrite.new(url:, api_key:, model:)
     end
 
     def run(argv)
@@ -25,12 +25,11 @@ class Cowrite
       files = find_files prompt
 
       # prompting on main thread so we can go 1-by-1
-      finish = -> (file, _, diff) do
+      finish = lambda do |file, i, diff|
         # ask user if diff is fine (TODO: add a "no" option and re-prompt somehow)
-        # TODO colors
-        prompt "Diff for #{file}:\n#{diff}Apply diff to #{file}?", ["yes"]
+        prompt "Diff for #{file}:\n#{color_diff(diff)}Apply diff to #{file}?", ["yes"]
 
-        with_content_in_file(diff.strip + "\n") do |path|
+        with_content_in_file("#{diff.strip}\n") do |path|
           # apply diff (force sus changes, do not make backups)
           cmd = "patch -f --posix #{file} < #{path}"
           out = `#{cmd}`
@@ -38,13 +37,13 @@ class Cowrite
 
           # give the user a chance to copy the tempfile or modify it
           warn "Patch failed:\n#{cmd}\n#{out}"
-          prompt "Continue ?", ["yes"]
+          prompt "Continue ?", ["yes"] unless i + 1 == files.size
         end
       end
 
       # TODO: --parallel instead of env
       # produce diffs in parallel since it is slow
-      Parallel.each files, finish: finish, threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
+      Parallel.each files, finish:, threads: Integer(ENV["PARALLEL"] || "10"), progress: true do |file|
         @cowrite.diff file, prompt
       end
     end
@@ -80,26 +79,46 @@ class Cowrite
     end
 
     # prompt user with questions and answers until they pick one of them
-    # also supports replying with the first letter of the answer
+    # - supports replying with the first letter of the answer
+    # - supports enter for yes
     def prompt(question, answers)
       colored_answers = answers.map { |a| color(:underline, a[0]) + a[1...] }.join("/")
       loop do
         read = prompt_freeform "#{color_last_line(QUESTION_COLOR, question)} [#{colored_answers}]", color: :none
+        read = "yes" if read == "" && answers.include?("yes")
         return read if answers.include?(read)
-        if (a = answers.map { |a| a[0] }.index(read))
-          return answers[a]
+        if (ai = answers.map { |a| a[0] }.index(read))
+          return answers[ai]
         end
       end
     end
 
     def prompt_freeform(question, color: QUESTION_COLOR)
       warn color(color, question)
-      STDIN.gets.strip
+      $stdin.gets.strip
     end
 
     def color_last_line(color, text)
-      lines = text.split("\n")
-      lines[-1] = color(color, lines[-1])
+      modify_lines(text) { |l, i, size| i + 1 == size ? color(color, l) : l }
+    end
+
+    # color lines with +/- but not the header with ---/+++
+    def color_diff(diff)
+      modify_lines(diff) do |l, _, _|
+        if l =~ /^-[^-]/
+          color(:bg_light_green, l)
+        elsif l =~ /^\+[^+]/
+          color(:bg_light_red, l)
+        else
+          l
+        end
+      end
+    end
+
+    def modify_lines(text)
+      lines = text.split("\n", -1)
+      size = lines.size
+      lines = lines.each_with_index.map { |l, i| yield l, i, size }
       lines.join("\n")
     end
 
@@ -109,6 +128,8 @@ class Cowrite
         case color
         when :underline then 4
         when :blue then 34
+        when :bg_light_red then 101
+        when :bg_light_green then 102
         else raise ArgumentError
         end
       "\e[#{code}m#{text}\e[0m"

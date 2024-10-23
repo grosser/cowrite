@@ -3,7 +3,7 @@ name = "cowrite"
 $LOAD_PATH << File.expand_path("lib", __dir__)
 require "#{name.tr("-", "/")}/version"
 
-Gem::Specification.new name, Rubofix::VERSION do |s|
+Gem::Specification.new name, Cowrite::VERSION do |s|
   s.summary = "Create changes for a local repository with chatgpt / openai / local llm"
   s.authors = ["Michael Grosser"]
   s.email = "michael@grosser.it"
@@ -11,6 +11,6 @@ Gem::Specification.new name, Rubofix::VERSION do |s|
   s.files = `git ls-files lib/ bin/ MIT-LICENSE`.split("\n")
   s.license = "MIT"
   s.required_ruby_version = ">= 3.1.0"
-  s.add_runtime_dependency "parallel"
-  s.add_runtime_dependency "ruby-progressbar"
+  s.add_dependency "parallel"
+  s.add_dependency "ruby-progressbar"
 end
