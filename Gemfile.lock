@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    cowrite (0.1.0)
+    cowrite (0.2.0)
       parallel
       ruby-progressbar
 
