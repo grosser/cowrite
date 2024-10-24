@@ -19,19 +19,21 @@ class Cowrite
     end
 
     def run(argv)
-      abort "Use only first argument for prompt" if argv.size != 1 # TODO: remove
-      prompt = ARGV[0]
+      argv, files = parse_argv(argv)
 
-      files = find_files prompt
+      abort "Use only first argument for prompt" if argv.size != 1
+      prompt = argv[0]
+
+      files = find_files prompt if files.empty?
 
       # prompting on main thread so we can go 1-by-1
       finish = lambda do |file, i, diff|
         # ask user if diff is fine (TODO: add a "no" option and re-prompt somehow)
         prompt "Diff for #{file}:\n#{color_diff(diff)}Apply diff to #{file}?", ["yes"]
 
-        with_content_in_file("#{diff.strip}\n") do |path|
+        with_content_in_file(diff) do |path|
           # apply diff (force sus changes, do not make backups)
-          cmd = "patch -f --posix #{file} < #{path}"
+          cmd = "patch --posix #{file} < #{path}"
           out = `#{cmd}`
           return if $?.success?
 
@@ -81,15 +83,21 @@ class Cowrite
     # prompt user with questions and answers until they pick one of them
     # - supports replying with the first letter of the answer
     # - supports enter for yes
+    # - when not interactive assume yes
     def prompt(question, answers)
-      colored_answers = answers.map { |a| color(:underline, a[0]) + a[1...] }.join("/")
-      loop do
-        read = prompt_freeform "#{color_last_line(QUESTION_COLOR, question)} [#{colored_answers}]", color: :none
-        read = "yes" if read == "" && answers.include?("yes")
-        return read if answers.include?(read)
-        if (ai = answers.map { |a| a[0] }.index(read))
-          return answers[ai]
+      if $stdin.tty?
+        colored_answers = answers.map { |a| color(:underline, a[0]) + a[1...] }.join("/")
+        loop do
+          read = prompt_freeform "#{color_last_line(QUESTION_COLOR, question)} [#{colored_answers}]", color: :none
+          read = "yes" if read == "" && answers.include?("yes")
+          return read if answers.include?(read)
+          if (ai = answers.map { |a| a[0] }.index(read))
+            return answers[ai]
+          end
         end
+      else
+        return "yes" if answers.include?("yes")
+        abort "need answer but was not in interactive mode"
       end
     end
 
@@ -106,9 +114,9 @@ class Cowrite
     def color_diff(diff)
       modify_lines(diff) do |l, _, _|
         if l =~ /^-[^-]/
-          color(:bg_light_green, l)
-        elsif l =~ /^\+[^+]/
           color(:bg_light_red, l)
+        elsif l =~ /^\+[^+]/
+          color(:bg_light_green, l)
         else
           l
         end
@@ -137,6 +145,15 @@ class Cowrite
 
     def remove_shell_colors(string)
       string.gsub(/\e\[(\d+)(;\d+)*m/, "")
+    end
+
+    # allow passing files after --
+    def parse_argv(argv)
+      if (dash_index = argv.index("--"))
+        [argv[0...dash_index], argv[dash_index + 1..]]
+      else
+        [argv, []]
+      end
     end
   end
 end

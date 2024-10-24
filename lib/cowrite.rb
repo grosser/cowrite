@@ -37,6 +37,8 @@ class Cowrite
     # - tried "patch format" but that is often invalid
     # - tied "full fixed content" but that is always missing the fix
     # - need "ONLY" or it adds comments
+    # - tried asking for a diff but it's always in the wrong direction or has sublet bugs that make it unusable
+    content = File.read file
     prompt = <<~MSG
       Solve this prompt:
       ```
@@ -48,12 +50,17 @@ class Cowrite
       #{File.read file}
       ```
 
-      Reply with ONLY the change in diff format.
+      Reply with ONLY:
+      - all changed content inside a single ``` block
+      - what range lines from the original content need to be removed as "LINES: <start>-<end>"
     MSG
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
     puts "answer:\n#{answer}" if ENV["DEBUG"]
-    without_quotes(answer)
+    lines = answer.match(/LINES: (\d+)-(\d+)/)
+    answer.sub!(/.*\z/, "") # remove "LINES" line
+    section = without_quotes(answer).chomp # remove trailing newline since it always emits with an extra one
+    generate_diff content, section, from: Integer(lines[1]), to: Integer(lines[2])
   end
 
   private
@@ -61,6 +68,28 @@ class Cowrite
   # remove ```foo<content>``` wrapping
   def without_quotes(answer)
     answer.strip.sub(/\A```\S*\n(.*)```\z/m, "\\1")
+  end
+
+  def generate_diff(original, changed, from:, to:)
+    Tempfile.create "cowrite-diff-a" do |a|
+      Tempfile.create "cowrite-diff-b" do |b|
+        a.write original
+        a.close
+
+        lines = original.split("\n", -1)
+        lines[(from - 1)..(to - 1)] = changed.split("\n", -1)
+        b.write lines.join("\n")
+        b.close
+
+        diff = `diff #{a.path} #{b.path}`
+        if $?.exitstatus == 0
+          raise "No diff found"
+        elsif $?.exitstatus != 1
+          raise "diff failed: #{diff}"
+        end
+        diff
+      end
+    end
   end
 
   # def lines_from_file(file_path, line_number)
