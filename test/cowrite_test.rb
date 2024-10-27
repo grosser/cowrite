@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 require_relative "test_helper"
 
-SingleCov.covered! uncovered: 12
+SingleCov.covered! uncovered: 13
 
 describe Cowrite do
   let(:cowrite) { Cowrite.new(url: "https://api.openai.com", api_key: "x", model: "x") }

@@ -56,3 +56,11 @@ Style/SpecialGlobalVars:
 
 Style/WordArray:
   EnforcedStyle: brackets
+
+# clarifying parantheses can help
+Style/RedundantParentheses:
+  Enabled: false
+
+# sometimes easier to read
+Style/StringConcatenation:
+  Enabled: false

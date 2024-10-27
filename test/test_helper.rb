@@ -9,6 +9,7 @@ require "maxitest/autorun"
 require "webmock/minitest"
 require "mocha/minitest"
 require "stringio"
+require "shellwords"
 
 require "cowrite/version"
 require "cowrite"
