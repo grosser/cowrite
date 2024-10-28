@@ -30,7 +30,7 @@ git commit -am 'fixing rubocop warnings'
 - `PARALLEL=10` run queries in parallel
 - `COWRITE_URL=` defaults to `https://api.openai.com`
 - `COWRITE_API_KEY=`
-- pass list of files after `--` separator
+- pass list of files after `--` separator, especially if you want files that are not in git
 - use in non-interactive mode to make it assume "yes"
 
 

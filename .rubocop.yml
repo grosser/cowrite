@@ -2,7 +2,7 @@ require: rubocop-rake
 
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 3.1
+  TargetRubyVersion: 3.1 # keep in sync with .github/workflows/actions.yml, and gemspec
 
 Style/StringLiterals:
   Enabled: false
@@ -56,3 +56,11 @@ Style/SpecialGlobalVars:
 
 Style/WordArray:
   EnforcedStyle: brackets
+
+# clarifying parantheses can help
+Style/RedundantParentheses:
+  Enabled: false
+
+# sometimes easier to read
+Style/StringConcatenation:
+  Enabled: false

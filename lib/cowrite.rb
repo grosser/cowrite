@@ -17,12 +17,13 @@ class Cowrite
     abort files unless $?.success?
 
     prompt = <<~MSG
-      Your task is to find a subset of files from a given list of file names.
-      Only reply with the subset of files, newline separated, nothing else.
+      Your task is to find files that need to be written or read to solve an LLM-prompt.
 
-      Given this list of files: #{files.split("\n").inspect}
+      Only reply with a list of files, newline separated, nothing else.
 
-      Which subset of files would be useful for this LLM prompt:
+      List of local files: #{files.split("\n").inspect}
+
+      LLM-prompt:
       ```
       #{prompt}
       ```
@@ -33,37 +34,43 @@ class Cowrite
     without_quotes(answer).split("\n").map(&:strip) # llms like to add extra spaces
   end
 
-  def diff(file, prompt)
+  def diffs(prompt, files)
     # - tried "patch format" but that is often invalid
     # - tied "full fixed content" but that is always missing the fix
     # - need "ONLY" or it adds comments
     # - tried asking for a diff but it's always in the wrong direction or has sublet bugs that make it unusable
-    content = File.read file
     prompt = <<~MSG
       Solve this prompt:
       ```
       #{prompt}
       ```
 
-      By changing the content of the file #{file}:
-      ```
-      #{File.read file}
-      ```
+      By changing the content of these files:
+      #{files.map { |f| "#{f}:\n```#{file_read_or_empty f}```" }.join("\n")}
 
-      Reply with ONLY:
-      - all changed content inside a single ``` block
-      - what range lines from the original content need to be removed as "LINES: <start>-<end>"
+      Reply with ONLY a newline separated list of changes in the format:
+      - what range lines from the original content need to be removed as "FILE: <file> LINES: <start>-<end>"
+      - changed chunk inside a "```code" block
     MSG
+
     puts "prompt:#{prompt}" if ENV["DEBUG"]
     answer = send_to_openai(prompt)
     puts "answer:\n#{answer}" if ENV["DEBUG"]
-    lines = answer.match(/LINES: (\d+)-(\d+)/)
-    answer.sub!(/.*\z/, "") # remove "LINES" line
-    section = without_quotes(answer).chomp # remove trailing newline since it always emits with an extra one
-    generate_diff content, section, from: Integer(lines[1]), to: Integer(lines[2])
+
+    # - also getting leading "- " since sometimes the model prefixes that
+    # - getting any kind of block since sometimes the model uses "```go"
+    changes = answer.scan(/-? ?FILE: (\S+) LINES: (\d+)-(\d+)\n```\S+\n(.*?)\n```/m)
+    changes.map do |file, start, finish, diff|
+      content = file_read_or_empty file
+      [file, generate_diff(content, diff, from: Integer(start), to: Integer(finish))]
+    end
   end
 
   private
+
+  def file_read_or_empty(file)
+    File.exist?(file) ? File.read(file) : ""
+  end
 
   # remove ```foo<content>``` wrapping
   def without_quotes(answer)
