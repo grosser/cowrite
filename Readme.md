@@ -31,6 +31,7 @@ git commit -am 'fixing rubocop warnings'
 - `COWRITE_URL=` defaults to `https://api.openai.com`
 - `COWRITE_API_KEY=`
 - pass list of files after `--` separator, especially if you want files that are not in git
+- pass wildcards after `--` separator, for example `'add class comments' -- lib/*.rb`
 - use in non-interactive mode to make it assume "yes"
 
 
@@ -47,9 +48,10 @@ TODO
 
 - local LLM support
 - retry on api failures
-- try different temperatures to get better results
+- make temperatures an option
+- make max context an option
 - try to send output back to llm with "check this makes sense" to fix bugs
-- produce diffs and then apply them so we can fix multiple things in 1 file without changing line numbers
+- "question" mode that does not modify
 
 
 Author

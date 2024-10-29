@@ -217,8 +217,14 @@ class Cowrite
 
       abort "Use only first argument for prompt" if argv.size != 1
       prompt = argv[0]
+      [prompt, expand_file_globs(files), options]
+    end
 
-      [prompt, files, options]
+    def expand_file_globs(files)
+      files.flat_map do |f|
+        found = Dir[f]
+        found.any? ? found : f
+      end
     end
   end
 end

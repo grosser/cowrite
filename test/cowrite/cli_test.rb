@@ -2,7 +2,7 @@
 require_relative "../test_helper"
 require "cowrite/cli"
 
-SingleCov.covered! uncovered: 31
+SingleCov.covered! uncovered: 65
 
 describe Cowrite::CLI do
   let(:cli) { Cowrite::CLI.new }
@@ -27,7 +27,7 @@ describe Cowrite::CLI do
     end
 
     it "colors diff" do
-      call("-a\n+b\nc").must_equal "\e[102m-a\e[0m\n\e[101m+b\e[0m\nc"
+      call("-a\n+b\nc").must_equal "\e[101m-a\e[0m\n\e[102m+b\e[0m\nc"
     end
   end
 
@@ -85,6 +85,24 @@ describe Cowrite::CLI do
     it "ignores spaces" do
       $stdin.expects(:gets).returns "yes "
       capture_stderr { call("wut", ["yes", "no"]).must_equal "yes" }
+    end
+  end
+
+  describe "#expand_file_globs" do
+    def call(...)
+      cli.send(:expand_file_globs, ...)
+    end
+
+    it "keeps existing file" do
+      call(["Gemfile"]).must_equal ["Gemfile"]
+    end
+
+    it "expands globs" do
+      call(["Gemfil*"]).must_equal ["Gemfile", "Gemfile.lock"]
+    end
+
+    it "keeps files that are to be created" do
+      call(["nomatch"]).must_equal ["nomatch"]
     end
   end
 end
